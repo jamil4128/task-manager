@@ -17,20 +17,21 @@ router.post("/tasks", auth, async (req, res) => {
     }
 })
 
-router.get("/tasks", async (req, res) => {
+router.get("/tasks", auth, async (req, res) => {
     try {
-        const task = await Task.find({})
-        res.send(task)
+        //const task = await Task.find({ owner: req.user._id })
+        await req.user.populate("tasks").execPopulate()
+        res.send(req.user.tasks)
     } catch (error) {
         res.status(500).send(error)
     }
 
 })
 
-router.get("/tasks/:id", async (req, res) => {
-    const ids = req.params.id
+router.get("/tasks/:id", auth, async (req, res) => {
+    const _id = req.params.id
     try {
-        const task = await Task.findById(ids)
+        const task = await Task.findOne({ _id, owner: req.user._id })
         if (!task) {
             return res.status(404).send()
         }
@@ -49,23 +50,23 @@ router.patch("/tasks/:id", async (req, res) => {
         return res.status(400).send({ "error": "Cannot update this property" })
     }
     try {
-        const task = await Task.findById(req.params.id)
+        const task = await Task.findOne({ _id: req.params.id, owner: req.user._id })
+        if (!task) {
+            return res.status(404).send()
+        }
         triedUpdate.forEach(update => {
             task[update] = req.body[update]
         })
         await task.save()
         //const task = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
-        if (!task) {
-            return res.status(404).send()
-        }
         res.send(task)
     } catch (error) {
         res.retrun(400).send(error)
     }
 })
-router.delete("/tasks/:id", async (req, res) => {
+router.delete("/tasks/:id", auth, async (req, res) => {
     try {
-        const task = await Task.findByIdAndDelete(req.params.id)
+        const task = await Task.findOneAndDelete({ _id: req.params.id, owner: req.user._id })
         if (!task) {
             return res.status(404).send()
         }
