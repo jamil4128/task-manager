@@ -1,5 +1,5 @@
 const mongoose = require("mongoose")
-const task = mongoose.model("task", {
+const taskSchema = new mongoose.Schema({
     description: {
         type: String,
         required: true,
@@ -10,5 +10,12 @@ const task = mongoose.model("task", {
         default: false
     }
 })
+taskSchema.pre("save", async function (next) {
+    const task = this
+    console.log("Noice")
+    next()
+})
+
+const task = mongoose.model("task", taskSchema)
 
 module.exports = task
