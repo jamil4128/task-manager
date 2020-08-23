@@ -2,6 +2,19 @@ const express = require("express")
 const User = require("../model/user")
 const auth = require("../middleware/auth")
 const router = express.Router()
+const multer = require("multer")
+const sharp = require("sharp")
+const uploads = multer({
+    limits: {
+        fileSize: 1000000
+    },
+    fileFilter(req, file, callback) {
+        if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
+            return callback(new Error("File not supported"))
+        }
+        callback(undefined, true)
+    }
+})
 
 router.post("/users", async (req, res) => {
     const user = new User(req.body)
@@ -71,5 +84,30 @@ router.delete("/users/me", auth, async (req, res) => {
     } catch (error) {
         res.send(500).send(error)
     }
+})
+router.post("/users/me/avatar", auth, uploads.single("avatar"), async (req, res) => {
+    const buffer = await sharp(req.file.buffer).resize({ height: 250, width: 250 }).png().toBuffer()
+    req.user.avatar = buffer
+    await req.user.save()
+    res.status(200).send()
+}, (error, req, res, next) => {
+    res.status(400).send({ error: error.message })
+})
+router.get("/users/:id/avatar", async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id)
+        if (!user || !user.avatar) {
+            throw new Error("User profile not found")
+        }
+        res.set("content-Type", "image/png")
+        res.send(user.avatar)
+    } catch (error) {
+        res.status(400).send(error)
+    }
+})
+router.delete("/users/me/avatar", auth, async (req, res) => {
+    req.user.avatar = undefined
+    await req.user.save()
+    res.status(200).send()
 })
 module.exports = router
